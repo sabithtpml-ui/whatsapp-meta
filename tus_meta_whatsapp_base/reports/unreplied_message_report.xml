@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="un_replied_message_document">
+        <t t-call="web.external_layout">
+            <t t-set="o" t-value="o.with_context({'lang':'en_US'})"/>
+            <div class="page">
+                <div>
+                    <div class="col-xs-12 text-center" style="line-height: 1.3em;">
+                        <h2>
+                            <center>
+                                <strong>UNACKNOWLEDGED MESSAGE REPORT</strong>
+                            </center>
+                        </h2>
+                    </div>
+                </div>
+
+
+                <table class="table table-condensed" style="width:100%;font-size:12pt;font-weight: bold;">
+                    <thead>
+                        <tr style="border:1px solid black">
+                            <th style="width:5%;border:1px solid black;text-align:center;">SL NO</th>
+                            <th style="width:5%;border:1px solid black;text-align:center;">CUSTOMER NAME</th>
+                            <th style="width:5%;border:1px solid black;text-align:center;">CUSTOMER CODE</th>
+                            <th style="width:5%;border:1px solid black;text-align:center;">PHONE NUMBER</th>
+                            <th style="width:10%;border:1px solid black;text-align:center;">MESSAGE</th>
+                            <th style="width:10%;border:1px solid black;text-align:center;">MESSAGED ON</th>
+                            <th style="width:10%;border:1px solid black;text-align:center;">LAST REPLIED ON</th>
+                            <th style="width:5%;border:1px solid black;text-align:center;">LAST REPLY BY</th>
+                        </tr>
+                    </thead>
+
+
+                        <tbody>
+                             <t t-set="index" t-value="1"/>
+                            <tr t-foreach="o.get_data()" t-as="data">
+                                <td style="height:8px;border:1px solid black;text-align:center;">
+                                    <span t-esc="index"/>
+                                </td>
+                                <t t-set="index" t-value="index + 1"/>
+                                <td style="height:8px;border:1px solid black;text-align:center;">
+                                    <span t-esc="data['customer_name']"/>
+                                </td>
+                                <td style="height:8px;border:1px solid black;text-align:center;">
+                                    <span t-esc="data['customer_code']"/>
+                                </td>
+                                <td style="height:8px;border:1px solid black;text-align:center;">
+                                    <span t-esc="data['phone_number']"/>
+                                </td>
+                                <td style="height:8px;border:1px solid black;text-align:center;">
+                                    <span t-esc="data['message']"/>
+                                </td>
+                                <td style="height:8px;border:1px solid black;text-align:center;">
+                                    <span t-esc="data['messaged_on']"/>
+                                </td>
+                                <td style="height:8px;border:1px solid black;text-align:center;">
+                                    <span t-esc="data['last_replied_on']"/>
+                                </td>
+
+                                <td style="height:8px;border:1px solid black;text-align:center;">
+                                    <span t-esc="data['last_reply_by']"/>
+                                </td>
+                            </tr>
+                        </tbody>
+                </table>
+            </div>
+        </t>
+    </template>
+
+
+    <template id="report_un_replied_message">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="tus_meta_whatsapp_base.un_replied_message_document" t-lang="en_US"/>
+            </t>
+        </t>
+    </template>
+
+
+
+        <record id="report_un_replied_pdf_print" model="ir.actions.report">
+            <field name="name">Un-Replied Message Report</field>
+            <field name="model">unrepelied.message.report</field>
+            <field name="report_type">qweb-pdf</field>
+            <field name="report_name">tus_meta_whatsapp_base.report_un_replied_message</field>
+            <field name="report_file">tus_meta_whatsapp_base.report_un_replied_message</field>
+            <field name="print_report_name">'Un-Replied Message Report'</field>
+        </record>
+</odoo>

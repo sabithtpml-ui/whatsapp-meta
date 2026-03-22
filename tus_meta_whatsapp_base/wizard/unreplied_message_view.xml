@@ -1,0 +1,45 @@
+<odoo>
+    <record id="view_unreplied_report_form" model="ir.ui.view">
+        <field name="name">Unreplied Message Report</field>
+        <field name="model">unrepelied.message.report</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                             	<label for="date_from" string="From"/>
+                        	<div>
+                            	<div class="o_row o_row_readonly">
+                                	<field name="date_from" class="oe_inline" placeholder="From" required="1" />
+                                	<span class="oe_inline">
+                                    	To
+                                	</span>
+                                	<field name="date_to" class="oe_inline" placeholder="To" required="1"/>
+                            	</div>
+                        	</div>
+                        </group>
+                    </group>
+                </sheet>
+                <footer>
+                    <button string="PDF" name="get_report"
+                        type="object" icon="fa-download" class="oe_highlight"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_unreplied_report_form" model="ir.actions.act_window">
+        <field name="name">Unreplied Message Report</field>
+        <field name="res_model">unrepelied.message.report</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+
+     <menuitem id="wa_unreplied_message_menu"
+                  name="Un Replied Message Report"
+                  parent="wa_msgs_menu"
+                  sequence="4"
+                  action="action_unreplied_report_form" groups="tus_meta_whatsapp_base.whatsapp_group_user"/>
+
+</odoo>
