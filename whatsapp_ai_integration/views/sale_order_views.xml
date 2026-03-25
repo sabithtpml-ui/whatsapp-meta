@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="sale_order_form_inherit_whatsapp" model="ir.ui.view">
+        <field name="name">sale.order.form.whatsapp</field>
+        <field name="model">sale.order</field>
+        <field name="inherit_id" ref="sale.view_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_view_whatsapp_messages" type="object" class="oe_stat_button" icon="fa-whatsapp" attrs="{'invisible': [('wa_message_count','=',0)]}">
+                    <div class="o_field_widget o_stat_info">
+                        <span class="o_stat_value"><field name="wa_message_count"/></span>
+                        <span class="o_stat_text">WhatsApp</span>
+                    </div>
+                </button>
+            </xpath>
+            <xpath expr="//header" position="inside">
+                <button name="action_send_whatsapp_manual" string="Send WhatsApp" type="object" class="btn-secondary" attrs="{'invisible': [('state','!=','sale')]}"/>
+            </xpath>
+            <xpath expr="//field[@name='partner_id']" position="after">
+                <field name="wa_message_sent" invisible="1"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

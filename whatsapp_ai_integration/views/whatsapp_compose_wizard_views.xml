@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="whatsapp_compose_wizard_view_form" model="ir.ui.view">
+        <field name="name">whatsapp.compose.wizard.form</field>
+        <field name="model">whatsapp.compose.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Send WhatsApp Message">
+                <group>
+                    <field name="partner_id"/>
+                    <field name="phone"/>
+                    <field name="use_template"/>
+                    <field name="template_name" attrs="{'invisible': [('use_template','=',False)]}"/>
+                    <field name="message_body" attrs="{'invisible': [('use_template','=',True)]}" placeholder="Type your message here..."/>
+                </group>
+                <footer>
+                    <button name="action_send" string="Send" type="object" class="btn-primary"/>
+                    <button string="Cancel" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+</odoo>

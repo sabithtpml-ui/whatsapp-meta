@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="whatsapp_message_view_tree" model="ir.ui.view">
+        <field name="name">whatsapp.message.tree</field>
+        <field name="model">whatsapp.message</field>
+        <field name="arch" type="xml">
+            <tree string="WhatsApp Messages" decoration-danger="state=='failed'" decoration-info="direction=='incoming'" default_order="create_date desc">
+                <field name="create_date" string="Date"/>
+                <field name="partner_id"/>
+                <field name="phone"/>
+                <field name="direction"/>
+                <field name="body" string="Message"/>
+                <field name="message_type"/>
+                <field name="state"/>
+                <field name="is_chatbot" string="AI"/>
+            </tree>
+        </field>
+    </record>
+    <record id="whatsapp_message_view_form" model="ir.ui.view">
+        <field name="name">whatsapp.message.form</field>
+        <field name="model">whatsapp.message</field>
+        <field name="arch" type="xml">
+            <form string="WhatsApp Message">
+                <header>
+                    <button name="action_resend" string="Resend" type="object" class="btn-primary" attrs="{'invisible': ['|', ('state','!=','failed'), ('direction','!=','outgoing')]}"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,sent,delivered,read"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Message Info">
+                            <field name="wa_message_id"/>
+                            <field name="conversation_id"/>
+                            <field name="partner_id"/>
+                            <field name="phone"/>
+                            <field name="direction"/>
+                            <field name="message_type"/>
+                        </group>
+                        <group string="Status">
+                            <field name="state"/>
+                            <field name="is_chatbot"/>
+                            <field name="intent_detected"/>
+                            <field name="create_date" string="Timestamp"/>
+                        </group>
+                    </group>
+                    <group string="Content">
+                        <field name="body" nolabel="1" colspan="2"/>
+                    </group>
+                    <group string="Error" attrs="{'invisible': [('error_message','=',False)]}">
+                        <field name="error_message" nolabel="1" colspan="2"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="whatsapp_message_view_search" model="ir.ui.view">
+        <field name="name">whatsapp.message.search</field>
+        <field name="model">whatsapp.message</field>
+        <field name="arch" type="xml">
+            <search string="Search Messages">
+                <field name="body"/>
+                <field name="phone"/>
+                <field name="partner_id"/>
+                <separator/>
+                <filter string="Incoming" name="incoming" domain="[('direction','=','incoming')]"/>
+                <filter string="Outgoing" name="outgoing" domain="[('direction','=','outgoing')]"/>
+                <separator/>
+                <filter string="Failed" name="failed" domain="[('state','=','failed')]"/>
+                <filter string="AI Handled" name="chatbot" domain="[('is_chatbot','=',True)]"/>
+                <separator/>
+                <filter string="Today" name="today" domain="[('create_date','&gt;=', (context_today()).strftime('%%Y-%%m-%%d'))]"/>
+                <group expand="0" string="Group By">
+                    <filter string="Contact" name="group_partner" context="{'group_by':'partner_id'}"/>
+                    <filter string="Direction" name="group_direction" context="{'group_by':'direction'}"/>
+                    <filter string="Status" name="group_state" context="{'group_by':'state'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+</odoo>

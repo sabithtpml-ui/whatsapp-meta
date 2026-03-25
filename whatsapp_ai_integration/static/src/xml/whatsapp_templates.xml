@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="whatsapp_ai_integration.App">
+<div class="wa-app">
+    <!-- Top bar -->
+    <div class="wa-topbar">
+        <div class="wa-topbar-logo"><i class="fa fa-whatsapp"/> WhatsApp AI</div>
+        <div class="wa-topbar-nav">
+            <button t-attf-class="wa-topbar-nav-item #{state.view==='chat'?'active':''}" t-on-click="() => this.setView('chat')">
+                <i class="fa fa-comments"/> Chats
+                <t t-if="activeConvCount"><span class="wa-badge" t-esc="activeConvCount"/></t>
+            </button>
+            <button t-attf-class="wa-topbar-nav-item #{state.view==='dashboard'?'active':''}" t-on-click="() => this.setView('dashboard')">
+                <i class="fa fa-tachometer"/> Dashboard
+            </button>
+        </div>
+        <div class="wa-topbar-right">
+            <button class="wa-topbar-btn primary" t-on-click="openCompose"><i class="fa fa-paper-plane"/> New message</button>
+            <button class="wa-topbar-btn" t-on-click="openSettings"><i class="fa fa-cog"/></button>
+        </div>
+    </div>
+
+    <!-- Loading -->
+    <t t-if="state.loading">
+        <div class="wa-chat-empty" style="flex:1"><div class="wa-typing-indicator" style="transform:scale(2);margin-bottom:20px"><span/><span/><span/></div><p style="color:var(--wa-text-secondary)">Loading...</p></div>
+    </t>
+
+    <!-- ═══ CHAT VIEW ═══ -->
+    <t t-elif="state.view==='chat'">
+        <div class="wa-main">
+            <!-- Sidebar -->
+            <div class="wa-sidebar">
+                <div class="wa-sidebar-search"><div class="wa-search-box"><i class="fa fa-search"/><input type="text" placeholder="Search or start new chat" t-att-value="state.searchQuery" t-on-input="onSearchInput"/></div></div>
+                <div class="wa-sidebar-filters">
+                    <t t-foreach="['all','unread','ai','human']" t-as="f" t-key="f">
+                        <button t-attf-class="wa-filter-chip #{state.filter===f?'active':''}" t-on-click="() => this.setFilter(f)">
+                            <t t-if="f==='all'">All</t><t t-elif="f==='unread'">New</t><t t-elif="f==='ai'"><i class="fa fa-magic"/> AI</t><t t-else=""><i class="fa fa-user"/> Human</t>
+                        </button>
+                    </t>
+                </div>
+                <div class="wa-conv-list">
+                    <t t-if="filteredConversations.length===0"><div class="wa-empty-placeholder"><i class="fa fa-inbox"/><p>No conversations</p></div></t>
+                    <t t-foreach="filteredConversations" t-as="conv" t-key="conv.id">
+                        <div t-attf-class="wa-conv-item #{conv.id===state.selectedConvId?'selected':''} #{conv.state==='new'?'unread':''}" t-on-click="() => this.selectConversation(conv.id)">
+                            <div class="wa-conv-avatar" t-att-style="'background:'+avatarColor(conv.id)"><t t-esc="avatarInitial(conv.display_name)"/></div>
+                            <div class="wa-conv-body">
+                                <div class="wa-conv-header">
+                                    <span class="wa-conv-name" t-esc="conv.display_name or conv.phone"/>
+                                    <span class="wa-conv-time" t-esc="timeAgo(conv.last_message_date)"/>
+                                </div>
+                                <div class="wa-conv-preview">
+                                    <span class="wa-conv-state-dot" t-att-style="'background:'+stateDot(conv.state)"/>
+                                    <t t-if="conv.state==='ai_handled'"><i class="fa fa-magic" style="color:#8e5ec8;font-size:10px"/></t>
+                                    <t t-esc="truncate(conv.last_message_body, 40)"/>
+                                </div>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+            <!-- Chat area -->
+            <div class="wa-chat-area">
+                <t t-if="!selectedConversation">
+                    <div class="wa-chat-empty"><div class="wa-chat-empty-icon"><i class="fa fa-whatsapp"/></div><h2>WhatsApp AI for Odoo</h2><p>Select a conversation to begin.</p></div>
+                </t>
+                <t t-else="">
+                    <!-- Header -->
+                    <div class="wa-chat-header">
+                        <div class="wa-conv-avatar" style="width:40px;height:40px;font-size:16px" t-att-style="'width:40px;height:40px;font-size:16px;background:'+avatarColor(selectedConversation.id)">
+                            <t t-esc="avatarInitial(selectedConversation.display_name)"/>
+                        </div>
+                        <div class="wa-chat-header-info">
+                            <div class="wa-chat-header-name" t-esc="selectedConversation.display_name or selectedConversation.phone"/>
+                            <div class="wa-chat-header-status">
+                                <span class="wa-conv-state-dot" t-att-style="'background:'+stateDot(selectedConversation.state)"/>
+                                <t t-esc="stateLabel(selectedConversation.state)"/>
+                                <span style="margin-left:6px;color:var(--wa-text-tertiary)"><i class="fa fa-phone" style="font-size:11px"/> <t t-esc="selectedConversation.phone"/></span>
+                            </div>
+                        </div>
+                        <div class="wa-chat-header-actions">
+                            <t t-if="selectedConversation.state!=='human_takeover'">
+                                <button class="wa-chat-header-btn" title="Take over" t-on-click="takeoverConversation"><i class="fa fa-user-plus"/></button>
+                            </t>
+                            <t t-if="selectedConversation.state==='human_takeover'">
+                                <button class="wa-chat-header-btn primary" title="Resume AI" t-on-click="resumeAi"><i class="fa fa-magic"/></button>
+                            </t>
+                            <button class="wa-chat-header-btn" title="Info" t-on-click="toggleInfo"><i class="fa fa-info-circle"/></button>
+                        </div>
+                    </div>
+                    <!-- Messages -->
+                    <div class="wa-messages" t-ref="messagesContainer">
+                        <t t-foreach="groupedMessages" t-as="item" t-key="item_index">
+                            <t t-if="item.type==='date'"><div class="wa-date-divider"><span t-esc="item.label"/></div></t>
+                            <t t-if="item.type==='message'">
+                                <div t-att-class="bubbleClass(item.data)">
+                                    <t t-if="item.data.is_chatbot and item.data.direction==='outgoing'">
+                                        <div class="wa-bubble-sender"><i class="fa fa-magic" style="margin-right:3px"/> AI Bot</div>
+                                    </t>
+                                    <div class="wa-bubble-text" t-esc="item.data.body"/>
+                                    <div class="wa-bubble-footer">
+                                        <t t-if="item.data.is_chatbot and item.data.direction==='outgoing'">
+                                            <span class="wa-bubble-ai-tag"><i class="fa fa-magic"/> AI</span>
+                                        </t>
+                                        <span class="wa-bubble-time" t-esc="formatTime(item.data.create_date)"/>
+                                        <t t-if="item.data.direction==='outgoing'">
+                                            <span class="wa-bubble-status"><i t-attf-class="fa #{statusIcon(item.data)}"/></span>
+                                        </t>
+                                    </div>
+                                </div>
+                            </t>
+                        </t>
+                        <t t-if="state.sending"><div class="wa-bubble outgoing" style="opacity:0.6"><div class="wa-typing-indicator"><span/><span/><span/></div></div></t>
+                    </div>
+                    <!-- Composer -->
+                    <t t-if="selectedConversation.state!=='closed'">
+                        <div class="wa-composer">
+                            <div class="wa-composer-input-wrap">
+                                <textarea class="wa-composer-input" placeholder="Type a message..." rows="1" t-att-value="state.composerText" t-on-input="onComposerInput" t-on-keydown="onComposerKeydown"/>
+                            </div>
+                            <button class="wa-composer-send" t-on-click="sendMessage" t-att-disabled="!state.composerText.trim() || state.sending"><i class="fa fa-paper-plane"/></button>
+                        </div>
+                    </t>
+                    <t t-if="selectedConversation.state==='closed'">
+                        <div class="wa-composer" style="justify-content:center;padding:16px"><span style="color:var(--wa-text-tertiary);font-size:13px"><i class="fa fa-lock" style="margin-right:4px"/> Conversation closed</span></div>
+                    </t>
+                </t>
+            </div>
+
+            <!-- Info panel -->
+            <t t-if="state.showInfo and selectedConversation">
+                <div class="wa-info-panel">
+                    <div class="wa-info-header"><h3>Contact info</h3><button class="wa-info-close" t-on-click="toggleInfo"><i class="fa fa-times"/></button></div>
+                    <div class="wa-info-body">
+                        <div class="wa-info-avatar" t-att-style="'background:'+avatarColor(selectedConversation.id)"><t t-esc="avatarInitial(selectedConversation.display_name)"/></div>
+                        <div class="wa-info-name" t-esc="selectedConversation.display_name or 'Unknown'"/>
+                        <div class="wa-info-phone" t-esc="selectedConversation.phone"/>
+                        <div class="wa-info-section">
+                            <h4>Conversation</h4>
+                            <div class="wa-info-row"><span class="wa-info-row-label">Status</span><span t-attf-class="wa-state-badge #{selectedConversation.state}" t-esc="selectedConversation.state"/></div>
+                            <div class="wa-info-row"><span class="wa-info-row-label">Messages</span><span class="wa-info-row-value" t-esc="selectedConversation.message_count"/></div>
+                        </div>
+                        <t t-if="state.partner">
+                            <div class="wa-info-section">
+                                <h4>Customer</h4>
+                                <t t-if="state.partner.email"><div class="wa-info-row"><span class="wa-info-row-label">Email</span><span class="wa-info-row-value" t-esc="state.partner.email"/></div></t>
+                                <t t-if="state.partner.city"><div class="wa-info-row"><span class="wa-info-row-label">City</span><span class="wa-info-row-value" t-esc="state.partner.city"/></div></t>
+                                <t t-if="state.partner.country_id"><div class="wa-info-row"><span class="wa-info-row-label">Country</span><span class="wa-info-row-value" t-esc="state.partner.country_id[1]"/></div></t>
+                            </div>
+                        </t>
+                    </div>
+                    <div class="wa-info-actions">
+                        <button class="wa-info-action-btn primary" t-on-click="openInOdoo"><i class="fa fa-external-link"/> Open in Odoo</button>
+                        <t t-if="selectedConversation.state!=='human_takeover'"><button class="wa-info-action-btn" t-on-click="takeoverConversation"><i class="fa fa-user-plus"/> Take over</button></t>
+                        <t t-if="selectedConversation.state==='human_takeover'"><button class="wa-info-action-btn" t-on-click="resumeAi"><i class="fa fa-magic"/> Resume AI</button></t>
+                        <button class="wa-info-action-btn danger" t-on-click="closeConversation"><i class="fa fa-times-circle"/> Close</button>
+                    </div>
+                </div>
+            </t>
+        </div>
+    </t>
+
+    <!-- ═══ DASHBOARD VIEW ═══ -->
+    <t t-elif="state.view==='dashboard'">
+        <div class="wa-dashboard-view">
+            <div class="wa-dash-grid">
+                <t t-foreach="[
+                    {icon:'fa-comments',  val:state.stats.total_conversations, lbl:'Total conversations', cls:'green'},
+                    {icon:'fa-bolt',      val:state.stats.active_conversations, lbl:'Active now',          cls:'blue'},
+                    {icon:'fa-magic',     val:state.stats.ai_handled,           lbl:'AI handling',         cls:'purple'},
+                    {icon:'fa-user',      val:state.stats.human_takeover,       lbl:'Human takeover',      cls:'amber'},
+                    {icon:'fa-envelope',  val:state.stats.messages_today,       lbl:'Messages today',      cls:'teal'},
+                    {icon:'fa-calendar',  val:state.stats.messages_week,        lbl:'This week',           cls:'blue'},
+                    {icon:'fa-warning',   val:state.stats.failed_messages,      lbl:'Failed',              cls:'red'},
+                    {icon:'fa-database',  val:state.stats.total_messages,       lbl:'Total messages',      cls:'gray'},
+                ]" t-as="kpi" t-key="kpi.lbl">
+                    <div class="wa-kpi" t-on-click="() => this.navigateFromDash(kpi.lbl.includes('Failed') ? 'failed' : 'conversations')">
+                        <div t-attf-class="wa-kpi-icon #{kpi.cls}"><i t-attf-class="fa #{kpi.icon}"/></div>
+                        <div class="wa-kpi-content"><h3 t-esc="kpi.val"/><p t-esc="kpi.lbl"/></div>
+                    </div>
+                </t>
+            </div>
+            <div class="wa-dash-panels">
+                <!-- Recent conversations -->
+                <div class="wa-panel">
+                    <div class="wa-panel-head"><h3><i class="fa fa-comments"/> Recent conversations</h3><button class="wa-panel-link" t-on-click="() => this.navigateFromDash('conversations')">View all</button></div>
+                    <div class="wa-panel-body">
+                        <t t-if="!state.recentConversations.length"><div class="wa-empty-placeholder"><i class="fa fa-inbox"/><p>No conversations yet</p></div></t>
+                        <t t-foreach="state.recentConversations" t-as="rc" t-key="rc.id">
+                            <div class="wa-panel-row" t-on-click="() => this.openConversationFromDash(rc.id)">
+                                <div class="wa-panel-row-icon" t-att-style="'background:'+avatarColor(rc.id)"><t t-esc="avatarInitial(rc.display_name)"/></div>
+                                <div class="wa-panel-row-body">
+                                    <div class="wa-panel-row-title" t-esc="rc.display_name"/>
+                                    <div class="wa-panel-row-sub" t-esc="truncate(rc.last_message_body, 40)"/>
+                                </div>
+                                <div class="wa-panel-row-meta">
+                                    <span t-attf-class="wa-state-badge #{rc.state}" t-esc="rc.state"/>
+                                    <div class="time" t-esc="timeAgo(rc.last_message_date)"/>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+                <!-- Recent messages -->
+                <div class="wa-panel">
+                    <div class="wa-panel-head"><h3><i class="fa fa-envelope"/> Recent messages</h3></div>
+                    <div class="wa-panel-body">
+                        <t t-if="!state.recentMessages.length"><div class="wa-empty-placeholder"><i class="fa fa-envelope-o"/><p>No messages yet</p></div></t>
+                        <t t-foreach="state.recentMessages" t-as="rm" t-key="rm.id">
+                            <div class="wa-panel-row">
+                                <div class="wa-panel-row-icon" t-att-style="rm.direction==='incoming'?'background:#3b82f6':'background:#00a884'">
+                                    <i t-attf-class="fa #{rm.direction==='incoming'?'fa-arrow-down':'fa-arrow-up'}" style="font-weight:400"/>
+                                </div>
+                                <div class="wa-panel-row-body">
+                                    <div class="wa-panel-row-title"><t t-esc="rm.phone"/><t t-if="rm.is_chatbot"><span style="margin-left:4px;font-size:10px;background:#f3e8ff;color:#7c3aed;padding:1px 5px;border-radius:4px;font-weight:600">AI</span></t></div>
+                                    <div class="wa-panel-row-sub" t-esc="truncate(rm.body, 50)"/>
+                                </div>
+                                <div class="wa-panel-row-meta"><div class="time" t-esc="timeAgo(rm.create_date)"/></div>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </t>
+</div>
+</t>
+
+</templates>

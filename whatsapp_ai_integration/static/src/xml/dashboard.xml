@@ -1,0 +1,558 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<!-- ══════════════════════════════════════════════════════════════
+     MAIN APP SHELL
+     ══════════════════════════════════════════════════════════════ -->
+<t t-name="whatsapp_ai_integration.App">
+    <div class="wa-app">
+
+        <!-- Top Navigation Bar -->
+        <div class="wa-topbar">
+            <div class="wa-topbar-logo">
+                <i class="fa fa-whatsapp"/>
+                <span>WhatsApp AI</span>
+            </div>
+
+            <div class="wa-topbar-nav">
+                <button t-attf-class="wa-topbar-nav-item #{state.view === 'chat' ? 'active' : ''}"
+                        t-on-click="() => this.setView('chat')">
+                    <i class="fa fa-comments"/> Chats
+                    <t t-if="activeConvCount > 0">
+                        <span class="wa-badge" t-esc="activeConvCount"/>
+                    </t>
+                </button>
+                <button t-attf-class="wa-topbar-nav-item #{state.view === 'dashboard' ? 'active' : ''}"
+                        t-on-click="() => this.setView('dashboard')">
+                    <i class="fa fa-tachometer"/> Dashboard
+                </button>
+            </div>
+
+            <div class="wa-topbar-right">
+                <button class="wa-topbar-btn" t-on-click="openCompose">
+                    <i class="fa fa-paper-plane"/> New message
+                </button>
+                <button class="wa-topbar-btn" t-on-click="openSettings">
+                    <i class="fa fa-cog"/>
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <t t-if="state.loading">
+            <div class="wa-chat-empty" style="flex:1;">
+                <div class="wa-typing-indicator" style="transform:scale(2);margin-bottom:20px;">
+                    <span/><span/><span/>
+                </div>
+                <p style="color:var(--wa-text-secondary);">Loading WhatsApp AI...</p>
+            </div>
+        </t>
+
+        <!-- Chat View -->
+        <t t-elif="state.view === 'chat'">
+            <div class="wa-main">
+                <!-- Sidebar -->
+                <div class="wa-sidebar">
+                    <ConversationList
+                        conversations="state.conversations"
+                        selectedId="state.selectedConvId"
+                        filter="state.filter"
+                        searchQuery="state.searchQuery"
+                        onSelect.bind="selectConversation"
+                        onFilterChange.bind="setFilter"
+                        onSearchChange.bind="setSearchQuery"
+                    />
+                </div>
+
+                <!-- Chat area -->
+                <ChatView
+                    conversation="selectedConversation"
+                    messages="state.messages"
+                    sending="state.sending"
+                    onSend.bind="sendMessage"
+                    onToggleInfo.bind="toggleInfo"
+                    onTakeover.bind="takeoverConversation"
+                    onResumeAi.bind="resumeAi"
+                />
+
+                <!-- Info panel -->
+                <t t-if="state.showInfo and selectedConversation">
+                    <InfoPanel
+                        conversation="selectedConversation"
+                        partner="state.partner"
+                        onClose.bind="toggleInfo"
+                        onOpenInOdoo.bind="openInOdoo"
+                        onTakeover.bind="takeoverConversation"
+                        onResumeAi.bind="resumeAi"
+                        onCloseConversation.bind="closeConversation"
+                    />
+                </t>
+            </div>
+        </t>
+
+        <!-- Dashboard View -->
+        <t t-elif="state.view === 'dashboard'">
+            <DashboardView
+                stats="state.stats"
+                recentConversations="state.recentConversations"
+                recentMessages="state.recentMessages"
+                onOpenConversation.bind="openConversationFromDashboard"
+                onNavigate.bind="navigateFromDashboard"
+            />
+        </t>
+
+    </div>
+</t>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     CONVERSATION LIST (sidebar)
+     ══════════════════════════════════════════════════════════════ -->
+<t t-name="whatsapp_ai_integration.ConversationList">
+    <!-- Search -->
+    <div class="wa-sidebar-search">
+        <div class="wa-search-box">
+            <i class="fa fa-search"/>
+            <input type="text"
+                   placeholder="Search or start new chat"
+                   t-att-value="props.searchQuery"
+                   t-on-input="(ev) => props.onSearchChange(ev.target.value)"/>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="wa-sidebar-filters">
+        <button t-attf-class="wa-filter-chip #{props.filter === 'all' ? 'active' : ''}"
+                t-on-click="() => props.onFilterChange('all')">All</button>
+        <button t-attf-class="wa-filter-chip #{props.filter === 'unread' ? 'active' : ''}"
+                t-on-click="() => props.onFilterChange('unread')">New</button>
+        <button t-attf-class="wa-filter-chip #{props.filter === 'ai' ? 'active' : ''}"
+                t-on-click="() => props.onFilterChange('ai')">
+            <i class="fa fa-magic" style="margin-right:3px;"/> AI
+        </button>
+        <button t-attf-class="wa-filter-chip #{props.filter === 'human' ? 'active' : ''}"
+                t-on-click="() => props.onFilterChange('human')">
+            <i class="fa fa-user" style="margin-right:3px;"/> Human
+        </button>
+    </div>
+
+    <!-- Conversation List -->
+    <div class="wa-conv-list">
+        <t t-if="filteredConversations.length === 0">
+            <div class="wa-empty-placeholder">
+                <i class="fa fa-inbox"/>
+                <p>No conversations found</p>
+            </div>
+        </t>
+        <t t-else="">
+            <div t-foreach="filteredConversations" t-as="conv" t-key="conv.id"
+                 t-attf-class="wa-conv-item #{conv.id === props.selectedId ? 'selected' : ''} #{conv.state === 'new' ? 'unread' : ''}"
+                 t-on-click="() => props.onSelect(conv.id)">
+
+                <div t-attf-class="wa-conv-avatar #{avatarColor(conv.id)}">
+                    <t t-esc="avatarInitial(conv.display_name)"/>
+                </div>
+
+                <div class="wa-conv-body">
+                    <div class="wa-conv-header">
+                        <span class="wa-conv-name" t-esc="conv.display_name || conv.phone"/>
+                        <span class="wa-conv-time" t-esc="timeAgo(conv.last_message_date)"/>
+                    </div>
+                    <div class="wa-conv-preview">
+                        <span t-attf-class="wa-conv-state-dot #{conv.state}"/>
+                        <t t-if="conv.state === 'ai_handled'">
+                            <i class="fa fa-magic" style="color:var(--wa-purple);font-size:10px;"/>
+                        </t>
+                        <span t-esc="truncate(conv.last_message_body, 45)"/>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </div>
+</t>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     CHAT VIEW (message thread)
+     ══════════════════════════════════════════════════════════════ -->
+<t t-name="whatsapp_ai_integration.ChatView">
+    <div class="wa-chat-area">
+
+        <!-- Empty state -->
+        <t t-if="!props.conversation">
+            <div class="wa-chat-empty">
+                <div class="wa-chat-empty-icon">
+                    <i class="fa fa-whatsapp"/>
+                </div>
+                <h2>WhatsApp AI for Odoo</h2>
+                <p>Select a conversation from the sidebar to view messages, or send a new message to get started.</p>
+            </div>
+        </t>
+
+        <!-- Active chat -->
+        <t t-else="">
+            <!-- Header -->
+            <div class="wa-chat-header">
+                <div t-attf-class="wa-conv-avatar #{avatarColor(props.conversation.id)}"
+                     style="width:40px;height:40px;font-size:16px;">
+                    <t t-esc="avatarInitial(props.conversation.display_name)"/>
+                </div>
+                <div class="wa-chat-header-info">
+                    <div class="wa-chat-header-name"
+                         t-esc="props.conversation.display_name || props.conversation.phone"/>
+                    <div class="wa-chat-header-status">
+                        <span t-attf-class="wa-conv-state-dot #{props.conversation.state}"/>
+                        <t t-if="props.conversation.state === 'ai_handled'">AI handling</t>
+                        <t t-elif="props.conversation.state === 'human_takeover'">Human agent</t>
+                        <t t-elif="props.conversation.state === 'new'">New conversation</t>
+                        <t t-elif="props.conversation.state === 'closed'">Closed</t>
+                        <t t-else="">Active</t>
+                        <span style="margin-left:6px;color:var(--wa-text-tertiary);">
+                            <i class="fa fa-phone" style="font-size:11px;"/>
+                            <t t-esc="props.conversation.phone"/>
+                        </span>
+                    </div>
+                </div>
+                <div class="wa-chat-header-actions">
+                    <t t-if="props.conversation.state !== 'human_takeover'">
+                        <button class="wa-chat-header-btn" title="Take over from AI"
+                                t-on-click="props.onTakeover">
+                            <i class="fa fa-user-plus"/>
+                        </button>
+                    </t>
+                    <t t-if="props.conversation.state === 'human_takeover'">
+                        <button class="wa-chat-header-btn primary" title="Resume AI"
+                                t-on-click="props.onResumeAi">
+                            <i class="fa fa-magic"/>
+                        </button>
+                    </t>
+                    <button class="wa-chat-header-btn" title="Contact info"
+                            t-on-click="props.onToggleInfo">
+                        <i class="fa fa-info-circle"/>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Messages -->
+            <div class="wa-messages" t-ref="messagesContainer">
+                <t t-foreach="groupedMessages" t-as="item" t-key="item_index">
+
+                    <!-- Date divider -->
+                    <t t-if="item.type === 'date'">
+                        <div class="wa-date-divider">
+                            <span t-esc="item.label"/>
+                        </div>
+                    </t>
+
+                    <!-- Message bubble -->
+                    <t t-if="item.type === 'message'">
+                        <div t-att-class="getBubbleClass(item.data)">
+                            <t t-if="item.data.is_chatbot and item.data.direction === 'outgoing'">
+                                <div class="wa-bubble-sender">
+                                    <i class="fa fa-magic" style="margin-right:3px;"/> AI Bot
+                                </div>
+                            </t>
+                            <div class="wa-bubble-text" t-esc="item.data.body"/>
+                            <div class="wa-bubble-footer">
+                                <t t-if="item.data.is_chatbot and item.data.direction === 'outgoing'">
+                                    <span class="wa-bubble-ai-tag">
+                                        <i class="fa fa-magic"/> AI
+                                    </span>
+                                </t>
+                                <span class="wa-bubble-time" t-esc="formatTime(item.data.create_date)"/>
+                                <t t-if="item.data.direction === 'outgoing'">
+                                    <span class="wa-bubble-status">
+                                        <i t-attf-class="fa #{getStatusIcon(item.data)}"/>
+                                    </span>
+                                </t>
+                            </div>
+                        </div>
+                    </t>
+                </t>
+
+                <!-- Sending indicator -->
+                <t t-if="props.sending">
+                    <div class="wa-bubble outgoing" style="opacity:0.6;">
+                        <div class="wa-typing-indicator">
+                            <span/><span/><span/>
+                        </div>
+                    </div>
+                </t>
+            </div>
+
+            <!-- Composer -->
+            <t t-if="props.conversation.state !== 'closed'">
+                <div class="wa-composer">
+                    <div class="wa-composer-input-wrap">
+                        <textarea class="wa-composer-input"
+                                  placeholder="Type a message..."
+                                  t-model="state.text"
+                                  t-on-keydown="onKeydown"
+                                  rows="1"/>
+                    </div>
+                    <button class="wa-composer-send"
+                            t-on-click="sendMessage"
+                            t-att-disabled="!state.text.trim() || props.sending">
+                        <i class="fa fa-paper-plane"/>
+                    </button>
+                </div>
+            </t>
+
+            <!-- Closed banner -->
+            <t t-if="props.conversation.state === 'closed'">
+                <div class="wa-composer" style="justify-content:center;padding:16px;">
+                    <span style="color:var(--wa-text-tertiary);font-size:13px;">
+                        <i class="fa fa-lock" style="margin-right:4px;"/> This conversation is closed
+                    </span>
+                </div>
+            </t>
+
+        </t>
+    </div>
+</t>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     INFO PANEL (right sidebar)
+     ══════════════════════════════════════════════════════════════ -->
+<t t-name="whatsapp_ai_integration.InfoPanel">
+    <div class="wa-info-panel">
+        <!-- Header -->
+        <div class="wa-info-header">
+            <h3>Contact info</h3>
+            <button class="wa-info-close" t-on-click="props.onClose">
+                <i class="fa fa-times"/>
+            </button>
+        </div>
+
+        <div class="wa-info-body">
+            <!-- Avatar -->
+            <div t-attf-class="wa-info-avatar #{avatarColor(props.conversation.id)}">
+                <t t-esc="avatarInitial(props.conversation.display_name)"/>
+            </div>
+            <div class="wa-info-name"
+                 t-esc="props.conversation.display_name || 'Unknown'"/>
+            <div class="wa-info-phone" t-esc="props.conversation.phone"/>
+
+            <!-- Conversation status -->
+            <div class="wa-info-section">
+                <h4>Conversation</h4>
+                <div class="wa-info-row">
+                    <span class="wa-info-row-label">Status</span>
+                    <span t-attf-class="wa-state-badge #{props.conversation.state}">
+                        <t t-esc="props.conversation.state"/>
+                    </span>
+                </div>
+                <div class="wa-info-row">
+                    <span class="wa-info-row-label">Messages</span>
+                    <span class="wa-info-row-value" t-esc="props.conversation.message_count"/>
+                </div>
+                <div class="wa-info-row" t-if="props.conversation.assigned_user_id">
+                    <span class="wa-info-row-label">Agent</span>
+                    <span class="wa-info-row-value" t-esc="props.conversation.assigned_user_id[1]"/>
+                </div>
+            </div>
+
+            <!-- Partner details -->
+            <t t-if="props.partner">
+                <div class="wa-info-section">
+                    <h4>Customer details</h4>
+                    <div class="wa-info-row" t-if="props.partner.email">
+                        <span class="wa-info-row-label">Email</span>
+                        <span class="wa-info-row-value" t-esc="props.partner.email"/>
+                    </div>
+                    <div class="wa-info-row" t-if="props.partner.city">
+                        <span class="wa-info-row-label">City</span>
+                        <span class="wa-info-row-value" t-esc="props.partner.city"/>
+                    </div>
+                    <div class="wa-info-row" t-if="props.partner.country_id">
+                        <span class="wa-info-row-label">Country</span>
+                        <span class="wa-info-row-value" t-esc="props.partner.country_id[1]"/>
+                    </div>
+                    <div class="wa-info-row">
+                        <span class="wa-info-row-label">Total invoiced</span>
+                        <span class="wa-info-row-value" t-esc="(props.partner.total_invoiced || 0).toFixed(2)"/>
+                    </div>
+                    <div class="wa-info-row">
+                        <span class="wa-info-row-label">Outstanding</span>
+                        <span class="wa-info-row-value" style="color:var(--wa-red);"
+                              t-esc="(props.partner.credit || 0).toFixed(2)"/>
+                    </div>
+                </div>
+            </t>
+        </div>
+
+        <!-- Actions -->
+        <div class="wa-info-actions">
+            <button class="wa-info-action-btn primary" t-on-click="props.onOpenInOdoo">
+                <i class="fa fa-external-link"/> Open in Odoo
+            </button>
+            <t t-if="props.conversation.state !== 'human_takeover'">
+                <button class="wa-info-action-btn" t-on-click="props.onTakeover">
+                    <i class="fa fa-user-plus"/> Take over
+                </button>
+            </t>
+            <t t-if="props.conversation.state === 'human_takeover'">
+                <button class="wa-info-action-btn" t-on-click="props.onResumeAi">
+                    <i class="fa fa-magic"/> Resume AI
+                </button>
+            </t>
+            <button class="wa-info-action-btn danger" t-on-click="props.onCloseConversation">
+                <i class="fa fa-times-circle"/> Close conversation
+            </button>
+        </div>
+    </div>
+</t>
+
+
+<!-- ══════════════════════════════════════════════════════════════
+     DASHBOARD VIEW
+     ══════════════════════════════════════════════════════════════ -->
+<t t-name="whatsapp_ai_integration.DashboardView">
+    <div class="wa-dashboard-view">
+
+        <!-- KPI cards -->
+        <div class="wa-dash-grid">
+            <div class="wa-kpi" t-on-click="() => props.onNavigate('conversations')">
+                <div class="wa-kpi-icon green"><i class="fa fa-comments"/></div>
+                <div class="wa-kpi-content">
+                    <h3 t-esc="props.stats.total_conversations"/>
+                    <p>Total conversations</p>
+                </div>
+            </div>
+            <div class="wa-kpi" t-on-click="() => props.onNavigate('conversations')">
+                <div class="wa-kpi-icon blue"><i class="fa fa-bolt"/></div>
+                <div class="wa-kpi-content">
+                    <h3 t-esc="props.stats.active_conversations"/>
+                    <p>Active now</p>
+                </div>
+            </div>
+            <div class="wa-kpi">
+                <div class="wa-kpi-icon purple"><i class="fa fa-magic"/></div>
+                <div class="wa-kpi-content">
+                    <h3 t-esc="props.stats.ai_handled"/>
+                    <p>AI handling</p>
+                </div>
+            </div>
+            <div class="wa-kpi">
+                <div class="wa-kpi-icon amber"><i class="fa fa-user"/></div>
+                <div class="wa-kpi-content">
+                    <h3 t-esc="props.stats.human_takeover"/>
+                    <p>Human takeover</p>
+                </div>
+            </div>
+            <div class="wa-kpi">
+                <div class="wa-kpi-icon teal"><i class="fa fa-envelope"/></div>
+                <div class="wa-kpi-content">
+                    <h3 t-esc="props.stats.messages_today"/>
+                    <p>Messages today</p>
+                </div>
+            </div>
+            <div class="wa-kpi">
+                <div class="wa-kpi-icon blue"><i class="fa fa-calendar"/></div>
+                <div class="wa-kpi-content">
+                    <h3 t-esc="props.stats.messages_week"/>
+                    <p>This week</p>
+                </div>
+            </div>
+            <div class="wa-kpi" t-on-click="() => props.onNavigate('failed')">
+                <div class="wa-kpi-icon red"><i class="fa fa-exclamation-triangle"/></div>
+                <div class="wa-kpi-content">
+                    <h3 t-esc="props.stats.failed_messages"/>
+                    <p>Failed</p>
+                </div>
+            </div>
+            <div class="wa-kpi">
+                <div class="wa-kpi-icon gray"><i class="fa fa-database"/></div>
+                <div class="wa-kpi-content">
+                    <h3 t-esc="props.stats.total_messages"/>
+                    <p>Total messages</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent panels -->
+        <div class="wa-dash-panels">
+
+            <!-- Recent conversations -->
+            <div class="wa-panel">
+                <div class="wa-panel-head">
+                    <h3><i class="fa fa-comments"/> Recent conversations</h3>
+                    <button class="wa-panel-link"
+                            t-on-click="() => props.onNavigate('conversations')">
+                        View all
+                    </button>
+                </div>
+                <div class="wa-panel-body">
+                    <t t-if="props.recentConversations.length === 0">
+                        <div class="wa-empty-placeholder">
+                            <i class="fa fa-inbox"/>
+                            <p>No conversations yet</p>
+                        </div>
+                    </t>
+                    <t t-foreach="props.recentConversations" t-as="conv" t-key="conv.id">
+                        <div class="wa-panel-row"
+                             t-on-click="() => props.onOpenConversation(conv.id)">
+                            <div t-attf-class="wa-panel-row-icon #{avatarColor(conv.id)}">
+                                <t t-esc="avatarInitial(conv.display_name)"/>
+                            </div>
+                            <div class="wa-panel-row-body">
+                                <div class="wa-panel-row-title" t-esc="conv.display_name"/>
+                                <div class="wa-panel-row-sub"
+                                     t-esc="truncate(conv.last_message_body, 40)"/>
+                            </div>
+                            <div class="wa-panel-row-meta">
+                                <span t-attf-class="wa-state-badge #{conv.state}"
+                                      t-esc="conv.state"/>
+                                <div class="time" t-esc="timeAgo(conv.last_message_date)"/>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+            <!-- Recent messages -->
+            <div class="wa-panel">
+                <div class="wa-panel-head">
+                    <h3><i class="fa fa-envelope"/> Recent messages</h3>
+                </div>
+                <div class="wa-panel-body">
+                    <t t-if="props.recentMessages.length === 0">
+                        <div class="wa-empty-placeholder">
+                            <i class="fa fa-envelope-o"/>
+                            <p>No messages yet</p>
+                        </div>
+                    </t>
+                    <t t-foreach="props.recentMessages" t-as="msg" t-key="msg.id">
+                        <div class="wa-panel-row">
+                            <div class="wa-panel-row-icon"
+                                 t-att-style="msg.direction === 'incoming' ? 'background:#3b82f6' : 'background:#00a884'">
+                                <i t-attf-class="fa #{msg.direction === 'incoming' ? 'fa-arrow-down' : 'fa-arrow-up'}"
+                                   style="font-weight:400;"/>
+                            </div>
+                            <div class="wa-panel-row-body">
+                                <div class="wa-panel-row-title">
+                                    <t t-esc="msg.phone"/>
+                                    <t t-if="msg.is_chatbot">
+                                        <span style="margin-left:4px;font-size:10px;background:#f3e8ff;color:#7c3aed;padding:1px 5px;border-radius:4px;font-weight:600;">
+                                            AI
+                                        </span>
+                                    </t>
+                                </div>
+                                <div class="wa-panel-row-sub" t-esc="truncate(msg.body, 50)"/>
+                            </div>
+                            <div class="wa-panel-row-meta">
+                                <span t-attf-class="wa-state-badge #{msg.state === 'failed' ? 'closed' : 'active'}"
+                                      style="font-size:10px;" t-esc="msg.state"/>
+                                <div class="time" t-esc="timeAgo(msg.create_date)"/>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</t>
+
+</templates>

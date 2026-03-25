@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="res_config_settings_view_form_whatsapp_ai" model="ir.ui.view">
+        <field name="name">res.config.settings.view.form.whatsapp_ai</field>
+        <field name="model">res.config.settings</field>
+        <field name="inherit_id" ref="base.res_config_settings_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//form" position="inside">
+                <app data-string="WhatsApp AI" string="WhatsApp AI" name="whatsapp_ai_integration">
+                    <block title="WhatsApp Meta Cloud API" name="wa_api_settings">
+                        <setting string="Phone Number ID">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <label for="wa_phone_number_id" class="col-lg-3"/>
+                                    <field name="wa_phone_number_id" class="col-lg-4"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting string="Business Account ID">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <label for="wa_business_account_id" class="col-lg-3"/>
+                                    <field name="wa_business_account_id" class="col-lg-4"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting string="Access Token">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <label for="wa_access_token" class="col-lg-3"/>
+                                    <field name="wa_access_token" class="col-lg-4" password="True"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting string="Webhook Verify Token">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <label for="wa_verify_token" class="col-lg-3"/>
+                                    <field name="wa_verify_token" class="col-lg-4"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting string="API Version">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <label for="wa_api_version" class="col-lg-3"/>
+                                    <field name="wa_api_version" class="col-lg-4"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting>
+                            <button name="action_test_whatsapp_connection" string="Test Connection" type="object" class="btn-primary" icon="fa-plug"/>
+                        </setting>
+                    </block>
+                    <block title="AI / LLM Configuration" name="llm_settings">
+                        <setting string="LLM Provider">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <label for="llm_provider" class="col-lg-3"/>
+                                    <field name="llm_provider" class="col-lg-4"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting string="API Key">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <label for="llm_api_key" class="col-lg-3"/>
+                                    <field name="llm_api_key" class="col-lg-4" password="True"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting string="Model Name">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <label for="llm_model" class="col-lg-3"/>
+                                    <field name="llm_model" class="col-lg-4"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting string="System Prompt Override">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <field name="llm_system_prompt" class="col-lg-8"/>
+                                </div>
+                            </div>
+                        </setting>
+                        <setting>
+                            <button name="action_test_llm_connection" string="Test LLM" type="object" class="btn-primary" icon="fa-cogs"/>
+                        </setting>
+                    </block>
+                    <block title="Features" name="feature_toggles">
+                        <setting string="Auto-send on SO Confirmation">
+                            <field name="wa_auto_send_so"/>
+                        </setting>
+                        <setting string="Enable AI Chatbot">
+                            <field name="wa_chatbot_enabled"/>
+                        </setting>
+                        <setting string="SO Template Name">
+                            <div class="content-group">
+                                <div class="row mt16">
+                                    <label for="wa_so_template_name" class="col-lg-3"/>
+                                    <field name="wa_so_template_name" class="col-lg-4"/>
+                                </div>
+                            </div>
+                        </setting>
+                    </block>
+                </app>
+            </xpath>
+        </field>
+    </record>
+</odoo>
